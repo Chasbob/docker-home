@@ -739,11 +739,15 @@ services:
   makemkv:
     container_name: makemkv
     image: jlesage/makemkv
+    environment:
+      - PUID=$PUID
+      - PGID=$PGID
+      - TZ=$TZ
     volumes:
       - $USERDIR/makemkv/config:/config
       - $MEDIADIR/Downloads/makemkv:/output:rw
     devices:
-      - "/dev/sr1:/dev/sr1"
+      - /dev/sr1
     labels:
       - "traefik.enable=true"
       ## HTTP Routers
@@ -756,3 +760,9 @@ services:
       ## HTTP Services
       - "traefik.http.routers.makemkv-rtr.service=makemkv-svc"
       - "traefik.http.services.makemkv-svc.loadbalancer.server.port=5800"
+    networks:
+      - t2_proxy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
