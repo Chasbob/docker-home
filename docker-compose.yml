@@ -287,6 +287,43 @@ services:
       options:
         max-size: "10m"
 
+  bazarr:
+    image: linuxserver/bazarr
+    container_name: bazarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+      - UMASK_SET=022 #optional
+    volumes:
+      - $USERDIR/docker/bazarr:/config
+      - $MEDIADIR/Movies:/movies
+      - $MEDIADIR/TV:/tv
+    restart: unless-stopped
+    networks:
+      - t2_proxy
+    environment:
+      PUID: $PUID
+      PGID: $PGID
+      TZ: $TZ
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.bazarr-rtr.entrypoints=https"
+      - "traefik.http.routers.bazarr-rtr.rule=Host(`bazarr.$DOMAINNAME`)"
+      - "traefik.http.routers.bazarr-rtr.priority=1"
+      - "traefik.http.routers.bazarr-rtr.tls=true"
+      - "traefik.http.routers.bazarr-rtr.tls.certresolver=dns-cloudflare"
+      ## Middlewares
+      - "traefik.http.routers.bazarr-rtr.middlewares=chain-oauth@file"
+      ## HTTP Services
+      - "traefik.http.routers.bazarr-rtr.service=bazarr-svc"
+      - "traefik.http.services.bazarr-svc.loadbalancer.server.port=6767"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+
 # Sonarr - TV Shows management
 # Set url_base in sonarr settings if using PathPrefix
   sonarr:
@@ -314,7 +351,7 @@ services:
       - "traefik.http.routers.sonarr-rtr.priority=1"
       - "traefik.http.routers.sonarr-rtr.tls=true"
       - "traefik.http.routers.sonarr-rtr.tls.certresolver=dns-cloudflare"
-      - "traefik.http.routers.sonarr-feed-rtr.entrypoints=https"
+      - "traefik.http.routers.sonarr-feed-rtr.entrypoints=https-web"
       - "traefik.http.routers.sonarr-feed-rtr.rule=Host(`sonarr.$DOMAINNAME`) && PathPrefix(`/feed`)"
       - "traefik.http.routers.sonarr-feed-rtr.priority=2"
       - "traefik.http.routers.sonarr-feed-rtr.tls=true"
@@ -336,6 +373,54 @@ services:
       options:
         max-size: "10m"
 
+# Sonarr - TV Shows management
+# Set url_base in lidarr settings if using PathPrefix
+  lidarr:
+#    image: aront/lidarr  #for mp4_automator support
+    image: linuxserver/lidarr:preview
+    container_name: lidarr
+    hostname: lidarr
+    restart: unless-stopped
+    networks:
+      - t2_proxy
+    volumes:
+      - $USERDIR/docker/lidarr:/config
+      - $MEDIADIR/Downloads:/downloads
+      - $MEDIADIR/Music:/music
+      - "/etc/localtime:/etc/localtime:ro"
+    environment:
+      PUID: $PUID
+      PGID: $PGID
+      TZ: $TZ
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.lidarr-rtr.entrypoints=https"
+      - "traefik.http.routers.lidarr-rtr.rule=Host(`lidarr.$DOMAINNAME`)"
+      - "traefik.http.routers.lidarr-rtr.priority=1"
+      - "traefik.http.routers.lidarr-rtr.tls=true"
+      - "traefik.http.routers.lidarr-rtr.tls.certresolver=dns-cloudflare"
+      - "traefik.http.routers.lidarr-feed-rtr.entrypoints=https-web"
+      - "traefik.http.routers.lidarr-feed-rtr.rule=Host(`lidarr.$DOMAINNAME`) && PathPrefix(`/feed`)"
+      - "traefik.http.routers.lidarr-feed-rtr.priority=2"
+      - "traefik.http.routers.lidarr-feed-rtr.tls=true"
+      - "traefik.http.routers.lidarr-api-rtr.entrypoints=https"
+      - "traefik.http.routers.lidarr-api-rtr.rule=Host(`lidarr.$DOMAINNAME`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.lidarr-api-rtr.priority=2"
+      - "traefik.http.routers.lidarr-api-rtr.tls=true"
+      ## Middlewares
+      - "traefik.http.routers.lidarr-rtr.middlewares=chain-oauth@file"
+      - "traefik.http.routers.lidarr-feed-rtr.middlewares=chain-no-auth@file"
+      - "traefik.http.routers.lidarr-api-rtr.middlewares=chain-no-auth@file"
+      ## HTTP Services
+      - "traefik.http.routers.lidarr-rtr.service=lidarr-svc"
+      - "traefik.http.routers.lidarr-feed-rtr.service=lidarr-svc"
+      - "traefik.http.routers.lidarr-api-rtr.service=lidarr-svc"
+      - "traefik.http.services.lidarr-svc.loadbalancer.server.port=8686"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
 ############################# MEDIA
 
 # Plex - Media Server
@@ -356,7 +441,7 @@ services:
       - "32412:32412/udp"
       - "32413:32413/udp"
       - "32414:32414/udp"
-      # - "$PLEX_WEB_TOOLS_PORT:33400"
+      - "$PLEX_WEB_TOOLS_PORT:33400"
     volumes:
       - $USERDIR/docker/plexms:/config
       - $MEDIADIR/Downloads:/Downloads
@@ -468,38 +553,38 @@ services:
 
 ############################# MAINTENANCE
 
-  resilio-sync:
-    image: linuxserver/resilio-sync
-    container_name: resilio-sync
-    volumes:
-      - $USERDIR/sync/config:/config
-      - $USERDIR/sync/downloads:/downloads
-      - /export/sync:/sync
-    ports:
-      - 55555:55555
-      - 55555:55555/udp
-    networks:
-      - traefik
-    restart: unless-stopped
-    labels:
-      - "traefik.enable=true"
-      ## HTTP Routers
-      - "traefik.http.routers.resilio-rtr-oauth.entrypoints=https"
-      - "traefik.http.routers.resilio-rtr-oauth.rule=Host(`sync.$DOMAINNAME`)"
-      - "traefik.http.routers.resilio-rtr-oauth.tls=true"
-      - "traefik.http.routers.resilio-rtr-oauth.tls.certresolver=dns-cloudflare"
-      ## Middlewares
-      - "traefik.http.routers.resilio-rtr-oauth.middlewares=chain-oauth@file"
-      ## HTTP Services
-      - "traefik.http.routers.resilio-rtr-oauth.service=resilio-svc"
-      - "traefik.http.services.resilio-svc.loadbalancer.server.port=8888"
+        # resilio-sync:
+        #   image: linuxserver/resilio-sync
+        #   container_name: resilio-sync
+        #   volumes:
+        #     - $USERDIR/sync/config:/config
+        #     - $USERDIR/sync/downloads:/downloads
+        #     - /export/sync:/sync
+        #   ports:
+        #     - 55555:55555
+        #     - 55555:55555/udp
+        #   networks:
+        #     - traefik
+        #   restart: unless-stopped
+        #   labels:
+        #     - "traefik.enable=true"
+        #     ## HTTP Routers
+        #     - "traefik.http.routers.resilio-rtr-oauth.entrypoints=https"
+        #     - "traefik.http.routers.resilio-rtr-oauth.rule=Host(`sync.$DOMAINNAME`)"
+        #     - "traefik.http.routers.resilio-rtr-oauth.tls=true"
+        #     - "traefik.http.routers.resilio-rtr-oauth.tls.certresolver=dns-cloudflare"
+        #     ## Middlewares
+        #     - "traefik.http.routers.resilio-rtr-oauth.middlewares=chain-oauth@file"
+        #     ## HTTP Services
+        #     - "traefik.http.routers.resilio-rtr-oauth.service=resilio-svc"
+        #     - "traefik.http.services.resilio-svc.loadbalancer.server.port=8888"
 
-    networks:
-      - t2_proxy
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
+        #   networks:
+        #     - t2_proxy
+        #   logging:
+        #     driver: "json-file"
+        #     options:
+        #       max-size: "10m"
 
   transmission-vpn:
     image: haugene/transmission-openvpn
