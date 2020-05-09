@@ -743,11 +743,15 @@ services:
       - PUID=$PUID
       - PGID=$PGID
       - TZ=$TZ
+      - AUTO_DISC_RIPPER=1
+      - AUTO_DISC_RIPPER_EJECT=1
+      - AUTO_DISC_RIPPER_FORCE_UNIQUE_OUTPUT_DIR=1
     volumes:
-      - $USERDIR/makemkv/config:/config
+      - $USERDIR/makemkv/config:/config:rw
       - $MEDIADIR/Downloads/makemkv:/output:rw
     devices:
       - /dev/sr1
+      - /dev/sg11
     labels:
       - "traefik.enable=true"
       ## HTTP Routers
