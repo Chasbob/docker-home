@@ -2,9 +2,9 @@ version: "3.7"
 
 ########################### NETWORKS
 networks:
-  t2_proxy:
+  traefik_net:
     external:
-      name: t2_proxy
+      name: traefik_net
   default:
     driver: bridge
 
@@ -19,17 +19,18 @@ services:
 ############################# FRONTENDS
 
 # Traefik - Reverse Proxy
-# docker network create --gateway 192.168.90.1 --subnet 192.168.90.0/24 t2_proxy
+# docker network create --gateway 192.168.90.1 --subnet 192.168.90.0/24 traefik_net
 # Subnet range 192.168.0.0/16 covers 192.168.0.0 to 192.168.255.255
-# touch $USERDIR/traefik2/acme/acme.json
-# chmod 600 $USERDIR/traefik2/acme/acme.json
-# touch $USERDIR/traefik2/traefik.log
+# touch $USERDIR/traefik/acme/acme.json
+# chmod 600 $USERDIR/traefik/acme/acme.json
+# touch $USERDIR/traefik/traefik.log
   traefik:
     container_name: traefik
-    image: traefik:v2.2.0
+    image: traefik:v2.2.1
     restart: always
     depends_on:
       - influxdb
+      - oauth
     command: # CLI arguments
       - --global.checkNewVersion=true
       - --global.sendAnonymousUsage=true
@@ -52,7 +53,7 @@ services:
       - --providers.docker=true
       - --providers.docker.defaultrule=Host(`{{ index .Labels "com.docker.compose.service" }}.$DOMAINNAME`)
       - --providers.docker.exposedByDefault=false
-      - --providers.docker.network=t2_proxy
+      - --providers.docker.network=traefik_net
       - --providers.docker.swarmMode=false
       - --providers.file.directory=/rules # Load dynamic configuration from one or more .toml or .yml files in a directory.
 #      - --providers.file.filename=/path/to/file # Load dynamic configuration from a file.
@@ -71,7 +72,7 @@ services:
       - --metrics.influxdb.password=$INFLUXDB_WRITE_USER_PASSWORD
       - --metrics.influxdb.pushInterval=1s
     networks:
-      t2_proxy:
+      traefik_net:
         ipv4_address: 192.168.90.254
     dns:
       - $DNS_SERVER
@@ -129,7 +130,7 @@ services:
     image: influxdb:1.5.4-alpine
     restart: always
     networks:
-      t2_proxy:
+      traefik_net:
         ipv4_address: 192.168.90.200
     volumes:
       - $USERDIR/influxdb:/var/lib/influxdb
@@ -145,7 +146,7 @@ services:
     restart: always
     user: $PUID
     networks:
-      - t2_proxy
+      - traefik_net
     volumes:
       - $USERDIR/grafana:/var/lib/grafana
     environment:
@@ -182,7 +183,7 @@ services:
     image: thomseddon/traefik-forward-auth:latest
     restart: always
     networks:
-      - t2_proxy
+      - traefik_net
     environment:
       - CLIENT_ID=$GOOGLE_CLIENT_ID
       - CLIENT_SECRET=$GOOGLE_CLIENT_SECRET
@@ -219,7 +220,7 @@ services:
     restart: always
     command: -H unix:///var/run/docker.sock --no-auth
     networks:
-      - t2_proxy
+      - traefik_net
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - $USERDIR/docker/portainer/data:/data # Change to local directory if you want to save/transfer config locally
@@ -253,7 +254,7 @@ services:
     hostname: radarr
     restart: unless-stopped
     networks:
-      - t2_proxy
+      - traefik_net
     volumes:
       - $USERDIR/docker/radarr:/config
       - $MEDIADIR/Downloads:/downloads
@@ -301,7 +302,7 @@ services:
       - $MEDIADIR/TV:/tv
     restart: unless-stopped
     networks:
-      - t2_proxy
+      - traefik_net
     environment:
       PUID: $PUID
       PGID: $PGID
@@ -333,7 +334,7 @@ services:
     hostname: sonarr
     restart: unless-stopped
     networks:
-      - t2_proxy
+      - traefik_net
     volumes:
       - $USERDIR/docker/sonarr:/config
       - $MEDIADIR/Downloads:/downloads
@@ -382,7 +383,7 @@ services:
     hostname: lidarr
     restart: unless-stopped
     networks:
-      - t2_proxy
+      - traefik_net
     volumes:
       - $USERDIR/docker/lidarr:/config
       - $MEDIADIR/Downloads:/downloads
@@ -430,7 +431,7 @@ services:
     hostname: plexms
     restart: unless-stopped
     networks:
-      - t2_proxy
+      - traefik_net
     ports:
       - "$PLEX_PORT:32400/tcp"
       - "3005:3005/tcp"
@@ -520,7 +521,7 @@ services:
     dns:
       - 10.2.15.7
     networks:
-      - t2_proxy
+      - traefik_net
     volumes:
       - $USERDIR/docker/jackett:/config
       - $MEDIADIR/Downloads:/downloads
@@ -592,7 +593,7 @@ services:
     hostname: transmission
     restart: unless-stopped
     networks:
-      - t2_proxy
+      - traefik_net
         # ports:
         #   - "10020:10020"
     cap_add:
