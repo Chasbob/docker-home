@@ -18,6 +18,31 @@ services:
 
 ############################# FRONTENDS
 
+  watchtower:
+    command: --label-enable --cleanup --interval 300
+    image: containrrr/watchtower
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    network_mode: none
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  dockerproxy:
+    depends_on:
+      - watchtower
+    environment:
+      CONTAINERS: 1
+    image: tecnativa/docker-socket-proxy
+    restart: always
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    networks:
+      - traefik_net
+    ports:
+      - 2375
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
 # Traefik - Reverse Proxy
 # docker network create --gateway 192.168.90.1 --subnet 192.168.90.0/24 traefik_net
 # Subnet range 192.168.0.0/16 covers 192.168.0.0 to 192.168.255.255
@@ -29,6 +54,8 @@ services:
     image: traefik:v2.2.1
     restart: always
     depends_on:
+      - dockerproxy
+      - watchtower
       - influxdb
       - oauth
     command: # CLI arguments
@@ -51,6 +78,7 @@ services:
       - --accessLog.bufferingSize=100 # Configuring a buffer of 100 lines
       - --accessLog.filters.statusCodes=400-599
       - --providers.docker=true
+      - --providers.docker.endpoint=tcp://dockerproxy:2375
       - --providers.docker.defaultrule=Host(`{{ index .Labels "com.docker.compose.service" }}.$DOMAINNAME`)
       - --providers.docker.exposedByDefault=false
       - --providers.docker.network=traefik_net
@@ -96,7 +124,6 @@ services:
         mode: host
     volumes:
       - ./traefik/rules:/rules # file provider directory
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       - $USERDIR/traefik/acme:/acme # cert location - you must touch this file and change permissions to 600
       - $USERDIR/traefik/log:/var/log/myTraefik # for fail2ban - make sure to touch file before starting container
       - $USERDIR/shared:/shared
@@ -156,6 +183,7 @@ services:
       GF_SECURITY_ADMIN_USER: $GRAFANA_ADMIN_USERNAME
       GF_SECURITY_ADMIN_PASSWORD: $GRAFANA_ADMIN_PASSWORD
     labels:
+      - "com.centurylinklabs.watchtower.enable=true"
       - "traefik.enable=true"
       ## HTTP Routers
       - "traefik.http.routers.grafana-rtr.entrypoints=https"
@@ -227,6 +255,7 @@ services:
     environment:
       - TZ=$TZ
     labels:
+      - "com.centurylinklabs.watchtower.enable=true"
       - "traefik.enable=true"
       ## HTTP Routers
       - "traefik.http.routers.portainer-rtr.entrypoints=https"
@@ -267,6 +296,7 @@ services:
       PGID: $PGID
       TZ: $TZ
     labels:
+      - "com.centurylinklabs.watchtower.enable=true"
       - "traefik.enable=true"
       ## HTTP Routers
       - "traefik.http.routers.radarr-rtr.entrypoints=https"
@@ -308,6 +338,7 @@ services:
       PGID: $PGID
       TZ: $TZ
     labels:
+      - "com.centurylinklabs.watchtower.enable=true"
       - "traefik.enable=true"
       ## HTTP Routers
       - "traefik.http.routers.bazarr-rtr.entrypoints=https"
@@ -345,6 +376,7 @@ services:
       PGID: $PGID
       TZ: $TZ
     labels:
+      - "com.centurylinklabs.watchtower.enable=true"
       - "traefik.enable=true"
       ## HTTP Routers
       - "traefik.http.routers.sonarr-rtr.entrypoints=https"
@@ -394,6 +426,7 @@ services:
       PGID: $PGID
       TZ: $TZ
     labels:
+      - "com.centurylinklabs.watchtower.enable=true"
       - "traefik.enable=true"
       ## HTTP Routers
       - "traefik.http.routers.lidarr-rtr.entrypoints=https"
@@ -460,6 +493,7 @@ services:
       ADVERTISE_IP: "http://$SERVER_IP:$PLEX_PORT/,https://plex.defreitas.io:443/"
       ALLOWED_NETWORKS: $LOCAL_NETWORKS
     labels:
+      - "com.centurylinklabs.watchtower.enable=true"
       - "traefik.enable=true"
       ## HTTP Routers
       - "traefik.http.routers.plexms-rtr.entrypoints=https,https-web"
@@ -530,6 +564,7 @@ services:
       PGID: $PGID
       TZ: $TZ
     labels:
+      - "com.centurylinklabs.watchtower.enable=true"
       - "traefik.enable=true"
       ## HTTP Routers
       - "traefik.http.routers.jackett-rtr.entrypoints=https"
@@ -604,6 +639,7 @@ services:
       - 1.1.1.1
       - 1.0.0.1
     labels:
+      - "com.centurylinklabs.watchtower.enable=true"
       - "traefik.enable=true"
       ## HTTP Routers
       - "traefik.http.routers.transmission-rtr.entrypoints=https"
