@@ -131,6 +131,7 @@ services:
       - CF_API_EMAIL=$CLOUDFLARE_EMAIL
       - CF_API_KEY=$CLOUDFLARE_API_KEY
     labels:
+      - "com.centurylinklabs.watchtower.enable=true"
       - "traefik.enable=true"
       # HTTP-to-HTTPS Redirect
       - "traefik.http.routers.http-catchall.entrypoints=http"
@@ -225,6 +226,7 @@ services:
       - LOG_FORMAT=text
       - LIFETIME=2592000 # 30 days
     labels:
+      - "com.centurylinklabs.watchtower.enable=true"
       - "traefik.enable=true"
       ## HTTP Routers
       - "traefik.http.routers.oauth-rtr.entrypoints=https"
