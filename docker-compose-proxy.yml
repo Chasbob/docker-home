@@ -1,0 +1,156 @@
+version: "3.8"
+
+########################### NETWORKS
+networks:
+  traefik_net:
+    external:
+      name: traefik_net
+  default:
+    driver: bridge
+
+services: 
+# Traefik - Reverse Proxy
+# docker network create --gateway 192.168.90.1 --subnet 192.168.90.0/24 traefik_net
+# Subnet range 192.168.0.0/16 covers 192.168.0.0 to 192.168.255.255
+# touch $USERDIR/traefik/acme/acme.json
+# chmod 600 $USERDIR/traefik/acme/acme.json
+# touch $USERDIR/traefik/traefik.log
+  traefik:
+    
+    image: traefik:v2.2.1
+    restart: always
+    depends_on:
+      - dockerproxy
+      - watchtower
+      - influxdb
+    command: # CLI arguments
+      - --global.checkNewVersion=true
+      - --global.sendAnonymousUsage=true
+      # entrypoints
+      # https://www.reddit.com/r/docker/comments/c1wrep/traefik_reverse_proxy_question_docker_overlay/
+      - --entrypoints.http.forwardedHeaders.trustedIPs=127.0.0.1/31, 192.168.90.1/24
+      - --entrypoints.http.proxyProtocol=true
+      - --entrypoints.http.proxyProtocol.trustedIPs=127.0.0.1/31, 192.168.90.1/24
+      - --entryPoints.http.address=:80
+      - --entryPoints.http.http.redirections.entrypoint.to=https
+      - --entryPoints.https.address=:443
+      - --entryPoints.http-web.address=:8044
+      - --entryPoints.http-web.http.middlewares=chain-oauth@file
+      - --entryPoints.http-web.http.redirections.entrypoint.to=https-web
+      - --entryPoints.https-web.address=:44344
+      - --entryPoints.traefik.address=:8080
+      - --serverstransport.insecureskipverify=true
+      - --api.dashboard=true
+      # Log
+      - --log=true
+      - --log.level=INFO # (Default: error) DEBUG, INFO, WARN, ERROR, FATAL, PANIC
+      - --accessLog=true
+      - --accessLog.filePath=/var/log/myTraefik/traefik.log
+      - --accessLog.bufferingSize=100 # Configuring a buffer of 100 lines
+      - --accessLog.filters.statusCodes=400-599
+      # providers
+      - --providers.docker=true
+      - --providers.docker.endpoint=tcp://dockerproxy:2375
+      - --providers.docker.defaultrule=Host(`{{ index .Labels "com.docker.compose.service" }}.$DOMAINNAME`)
+      - --providers.docker.exposedByDefault=false
+      - --providers.docker.network=traefik_net
+      - --providers.docker.swarmMode=false
+      - --providers.file.directory=/rules # Load dynamic configuration from one or more .toml or .yml files in a directory.
+      - --providers.file.watch=true # Only works on top level files in the rules folder
+      # ACME
+      - --certificatesResolvers.dns-cloudflare.acme.caServer=https://acme-staging-v02.api.letsencrypt.org/directory # uncomment when testing
+      - --certificatesResolvers.dns-cloudflare.acme.email=$CLOUDFLARE_EMAIL
+      - --certificatesResolvers.dns-cloudflare.acme.storage=/acme/acme.json
+      - --certificatesResolvers.dns-cloudflare.acme.dnsChallenge.provider=cloudflare
+      - --certificatesresolvers.dns-cloudflare.acme.dnschallenge=true
+      - --certificatesresolvers.dns-cloudflare.acme.dnschallenge.delaybeforecheck=60
+      # Metrics
+      - --metrics.influxdb=true
+      - --metrics.influxdb.address=influxdb:8086
+      - --metrics.influxdb.protocol=http
+      - --metrics.influxdb.database=traefik
+      - --metrics.influxdb.username=$INFLUXDB_WRITE_USER
+      - --metrics.influxdb.password=$INFLUXDB_WRITE_USER_PASSWORD
+      - --metrics.influxdb.pushInterval=1s
+    networks:
+      traefik_net:
+        ipv4_address: 192.168.90.254
+      docker_sock:
+      public:
+    dns:
+      - $DNS_SERVER
+    ports:
+      # https://www.reddit.com/r/docker/comments/c1wrep/traefik_reverse_proxy_question_docker_overlay/
+      - target: 80
+        published: 80
+        protocol: tcp
+        mode: host
+      - target: 443
+        published: 443
+        protocol: tcp
+        mode: host
+      - target: 44344
+        published: 44344
+        protocol: tcp
+        mode: host
+      - target: 8044
+        published: 8044
+        protocol: tcp
+        mode: host
+    volumes:
+      - ./traefik/rules:/rules # file provider directory
+      - $USERDIR/traefik/acme:/acme # cert location - you must touch this file and change permissions to 600
+      - $USERDIR/traefik/log:/var/log/myTraefik # for fail2ban - make sure to touch file before starting container
+      - $USERDIR/shared:/shared
+      - ./traefik/certs:/certs
+    environment:
+      CF_API_EMAIL: $CLOUDFLARE_EMAIL
+      CF_API_KEY: $CLOUDFLARE_API_KEY
+    labels:
+      traefik.enable: "true"
+      # HTTP Routers
+      traefik.http.routers.dashboard.rule: Host(`traefik.$DOMAINNAME`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))
+      traefik.http.routers.dashboard.service: api@internal
+      traefik.http.routers.dashboard.tls: "true"
+      traefik.http.routers.dashboard.entrypoints: https
+      traefik.http.routers.dashboard.tls.certresolver: dns-cloudflare # Comment out this line after first run of traefik to force the use of wildcard certs
+      traefik.http.routers.traefik-rtr.tls.domains[0].main: $DOMAINNAME
+      traefik.http.routers.traefik-rtr.tls.domains[0].sans: "*.$DOMAINNAME"
+
+
+# Google OAuth - Single Sign On using OAuth 2.0
+  # https://hub.docker.com/r/thomseddon/traefik-forward-auth
+  # https://console.developers.google.com/
+  # Follow directions at above link. My Google settings under the Credentials tab are:
+  # Credentials: Name can be anything (mine is Traefik) and Authorized redirect URLs:  	https://oauth.$DOMAINNAME/_oauth
+  # OAuth Concent Screen: Application Name is Traefik (think it can be anything). I entered my e-mail for support e-mail. Authorized Domains is $DOMAINNAME
+  # Domain Verification: $DOMAINNAME
+  oauth:
+    image: thomseddon/traefik-forward-auth:latest
+    restart: always
+    networks:
+      traefik_net:
+    environment:
+      CLIENT_ID: $GOOGLE_CLIENT_ID
+      CLIENT_SECRET: $GOOGLE_CLIENT_SECRET
+      SECRET: $OAUTH_SECRET
+      COOKIE_DOMAIN: $DOMAINNAME
+      INSECURE_COOKIE: "false"
+      AUTH_HOST: oauth.$DOMAINNAME
+      URL_PATH: /_oauth
+      WHITELIST: $MY_EMAIL
+      LIFETIME: 2592000 # 30 days
+    labels:
+      traefik.enable: "true"
+      ## HTTP Routers
+      traefik.http.routers.oauth-rtr.entrypoints: https, https-web
+      traefik.http.routers.oauth-rtr.rule: Host(`oauth.$DOMAINNAME`)
+      traefik.http.routers.oauth-rtr.tls: "true"
+      traefik.http.routers.oauth-rtr.tls.certresolver: dns-cloudflare
+      ## HTTP Services
+      traefik.http.routers.oauth-rtr.service: oauth-svc
+      traefik.http.services.oauth-svc.loadbalancer.server.port: 4181
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
