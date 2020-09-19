@@ -35,7 +35,7 @@ services:
       - --entryPoints.http.http.redirections.entrypoint.to=https
       - --entryPoints.https.address=:443
       - --entryPoints.http-web.address=:8044
-      - --entryPoints.http-web.http.middlewares=chain-oauth@file
+      # - --entryPoints.http-web.http.middlewares=chain-oauth@file
       - --entryPoints.http-web.http.redirections.entrypoint.to=https-web
       - --entryPoints.https-web.address=:44344
       - --entryPoints.traefik.address=:8080
@@ -63,7 +63,7 @@ services:
       - --certificatesResolvers.dns-cloudflare.acme.storage=/acme/acme.json
       - --certificatesResolvers.dns-cloudflare.acme.dnsChallenge.provider=cloudflare
       - --certificatesresolvers.dns-cloudflare.acme.dnschallenge=true
-      - --certificatesresolvers.dns-cloudflare.acme.dnschallenge.delaybeforecheck=60
+      - --certificatesresolvers.dns-cloudflare.acme.dnschallenge.delaybeforecheck=10
       # Metrics
       - --metrics.influxdb=true
       - --metrics.influxdb.address=influxdb:8086
@@ -114,8 +114,8 @@ services:
       traefik.http.routers.dashboard.tls: "true"
       traefik.http.routers.dashboard.entrypoints: https
       traefik.http.routers.dashboard.tls.certresolver: dns-cloudflare # Comment out this line after first run of traefik to force the use of wildcard certs
-      traefik.http.routers.traefik-rtr.tls.domains[0].main: $DOMAINNAME
-      traefik.http.routers.traefik-rtr.tls.domains[0].sans: "*.$DOMAINNAME"
+      traefik.http.routers.dashboard.tls.domains[0].main: $DOMAINNAME
+      traefik.http.routers.dashboard.tls.domains[0].sans: "*.$DOMAINNAME"
 
 
 # Google OAuth - Single Sign On using OAuth 2.0
@@ -146,7 +146,6 @@ services:
       traefik.http.routers.oauth-rtr.entrypoints: https, https-web
       traefik.http.routers.oauth-rtr.rule: Host(`oauth.$DOMAINNAME`)
       traefik.http.routers.oauth-rtr.tls: "true"
-      traefik.http.routers.oauth-rtr.tls.certresolver: dns-cloudflare
       ## HTTP Services
       traefik.http.routers.oauth-rtr.service: oauth-svc
       traefik.http.services.oauth-svc.loadbalancer.server.port: 4181

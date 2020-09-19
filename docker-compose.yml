@@ -62,7 +62,6 @@ services:
       traefik.http.routers.grafana-rtr.entrypoints: https
       traefik.http.routers.grafana-rtr.rule: Host(`grafana.$DOMAINNAME`)
       traefik.http.routers.grafana-rtr.tls: 'true'
-      traefik.http.routers.grafana-rtr.tls.certresolver: dns-cloudflare
       ## HTTP Services
       traefik.http.routers.grafana-rtr.service: grafana-svc
       traefik.http.services.grafana-svc.loadbalancer.server.port: 3000
@@ -90,7 +89,6 @@ services:
       traefik.http.routers.portainer-rtr.entrypoints: https
       traefik.http.routers.portainer-rtr.rule: Host(`portainer.$DOMAINNAME`) || (Host(`portainer.$DOMAINNAME`) && PathPrefix(`/api`))
       traefik.http.routers.portainer-rtr.tls: "true"
-      traefik.http.routers.portainer-rtr.tls.certresolver: dns-cloudflare
       ## HTTP Services
       traefik.http.routers.portainer-rtr.service: portainer-svc
       traefik.http.services.portainer-svc.loadbalancer.server.port: 9000
