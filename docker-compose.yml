@@ -1,3 +1,4 @@
+---
 version: "3.8"
 
 networks:
@@ -25,7 +26,6 @@ services:
     restart: always
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"
-
 
   influxdb:
     image: influxdb:1.5.4-alpine
@@ -59,9 +59,9 @@ services:
     labels:
       traefik.enable: "true"
       ## HTTP Routers
-      traefik.http.routers.grafana-rtr.entrypoints: https
+      traefik.http.routers.grafana-rtr.entrypoints: websecure
       traefik.http.routers.grafana-rtr.rule: Host(`grafana.$DOMAINNAME`)
-      traefik.http.routers.grafana-rtr.tls: 'true'
+      traefik.http.routers.grafana-rtr.tls: "true"
       ## HTTP Services
       traefik.http.routers.grafana-rtr.service: grafana-svc
       traefik.http.services.grafana-svc.loadbalancer.server.port: 3000
@@ -70,7 +70,6 @@ services:
       options:
         max-size: "10m"
 
-# Portainer - WebUI for Containers
   portainer:
     image: portainer/portainer:latest
     restart: always
@@ -79,15 +78,17 @@ services:
       - docker_sock
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - $USERDIR/portainer/data:/data # Change to local directory if you want to save/transfer config locally
+      - $USERDIR/portainer/data:/data
     environment:
       - TZ=$TZ
     labels:
       traefik.enable: "true"
       traefik.docker.network: docker_sock
       ## HTTP Routers
-      traefik.http.routers.portainer-rtr.entrypoints: https
-      traefik.http.routers.portainer-rtr.rule: Host(`portainer.$DOMAINNAME`) || (Host(`portainer.$DOMAINNAME`) && PathPrefix(`/api`))
+      traefik.http.routers.portainer-rtr.entrypoints: websecure
+      traefik.http.routers.portainer-rtr.rule: >-
+        Host(`portainer.$DOMAINNAME`) ||
+        (Host(`portainer.$DOMAINNAME`) && PathPrefix(`/api`))
       traefik.http.routers.portainer-rtr.tls: "true"
       ## HTTP Services
       traefik.http.routers.portainer-rtr.service: portainer-svc

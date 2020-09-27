@@ -1,0 +1,80 @@
+################################################################
+# Global configuration
+################################################################
+[global]
+  checkNewVersion = true
+  sendAnonymousUsage = true
+
+################################################################
+# Entrypoints configuration
+################################################################
+[serversTransport]
+  insecureSkipVerify = true
+[entryPoints]
+  [entryPoints.web]
+    address = ":80"
+    [entryPoints.web.http]
+      [entryPoints.web.http.redirections]
+        [entryPoints.web.http.redirections.entryPoint]
+          to = "websecure"
+
+  [entryPoints.websecure]
+    address = ":443"
+    [entryPoints.websecure.http]
+      middlewares = ["chain-oauth@file"]
+
+  [entryPoints.web-public]
+    address = ":8044"
+    [entryPoints.web-public.http]
+      [entryPoints.web-public.http.redirections]
+        [entryPoints.web-public.http.redirections.entryPoint]
+          to = "websecure-public"
+
+  [entryPoints.websecure-public]
+    address = ":44344"
+
+# Enable ACME (Let's Encrypt): automatic SSL.
+[certificatesResolvers.cloudflare-dns.acme]
+
+  email = "me@le.chasbob.dev"
+  storage = "/acme/acme.json"
+  caServer = "https://acme-staging-v02.api.letsencrypt.org/directory"
+  [certificatesResolvers.cloudflare-dns.acme.dnsChallenge]
+    provider = "cloudflare"
+    delayBeforeCheck = 10
+    resolvers = ["1.1.1.1:53", "1.0.0.1:53"]
+
+[providers]
+  providersThrottleDuration = 42
+  [providers.docker]
+    watch = true
+    endpoint = "tcp://dockerproxy:2375"
+    defaultRule = "Host(`{{ index .Labels \"com.docker.compose.service\" }}.$DOMAINNAME`)"
+    exposedByDefault = false
+    swarmMode = false
+    network = "traefik_net"
+  [providers.file]
+    watch = true
+    directory = "/etc/traefik/rules"
+
+
+################################################################
+# Traefik logs configuration
+################################################################
+[log]
+  level = "INFO"
+
+################################################################
+# Access logs configuration
+################################################################
+[accessLog]
+  filePath = "/var/log/traefik/access.log"
+  bufferingSize = 100
+  [[filters]]
+    statusCodes = "400-599"
+
+################################################################
+# API and dashboard configuration
+################################################################
+[api]
+  dashboard = true

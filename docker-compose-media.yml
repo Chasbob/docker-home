@@ -1,12 +1,11 @@
 # Sonarr - TV Shows management
 version: "3.8"
 
-networks: 
+networks:
   media:
     name: media
 
-
-services: 
+services:
   radarr:
     image: linuxserver/radarr:preview
     hostname: radarr
@@ -26,10 +25,10 @@ services:
       traefik.enable: "true"
       traefik.docker.network: media
       ## HTTP Routers
-      traefik.http.routers.radarr.entrypoints: https
+      traefik.http.routers.radarr.entrypoints: websecure
       traefik.http.routers.radarr.rule: Host(`radarr.$DOMAINNAME`)
       traefik.http.routers.radarr.tls: "true"
-      traefik.http.routers.radarr-api.entrypoints: https
+      traefik.http.routers.radarr-api.entrypoints: websecure
       traefik.http.routers.radarr-api.rule: Host(`radarr.$DOMAINNAME`) && PathPrefix(`/api`)
       traefik.http.routers.radarr-api.tls: "true"
       ## Middlewares
@@ -46,7 +45,6 @@ services:
 
   bazarr:
     image: linuxserver/bazarr
-    
     volumes:
       - $USERDIR/bazarr:/config
       - $MEDIADIR/Movies:/movies
@@ -63,7 +61,7 @@ services:
       traefik.enable: "true"
       traefik.docker.network: media
       ## HTTP Routers
-      traefik.http.routers.bazarr.entrypoints: https
+      traefik.http.routers.bazarr.entrypoints: websecure
       traefik.http.routers.bazarr.rule: Host(`bazarr.$DOMAINNAME`)
       traefik.http.routers.bazarr.tls: "true"
       ## Middlewares
@@ -76,7 +74,6 @@ services:
       options:
         max-size: "10m"
 
-# Set url_base in sonarr settings if using PathPrefix
   sonarr:
     image: linuxserver/sonarr:preview
     restart: unless-stopped
@@ -95,10 +92,10 @@ services:
       traefik.enable: "true"
       traefik.docker.network: media
       ## HTTP Routers
-      traefik.http.routers.sonarr.entrypoints: https
+      traefik.http.routers.sonarr.entrypoints: websecure
       traefik.http.routers.sonarr.rule: Host(`sonarr.$DOMAINNAME`)
       traefik.http.routers.sonarr.tls: "true"
-      traefik.http.routers.sonarr-api.entrypoints: https
+      traefik.http.routers.sonarr-api.entrypoints: websecure
       traefik.http.routers.sonarr-api.rule: Host(`sonarr.$DOMAINNAME`) && PathPrefix(`/api`)
       traefik.http.routers.sonarr-api.tls: "true"
       ## Middlewares
@@ -131,10 +128,10 @@ services:
       traefik.enable: "true"
       traefik.docker.network: media
       ## HTTP Routers
-      traefik.http.routers.lidarr.entrypoints: https
+      traefik.http.routers.lidarr.entrypoints: websecure
       traefik.http.routers.lidarr.rule: Host(`lidarr.$DOMAINNAME`)
       traefik.http.routers.lidarr.tls: "true"
-      traefik.http.routers.lidarr-api.entrypoints: https
+      traefik.http.routers.lidarr-api.entrypoints: websecure
       traefik.http.routers.lidarr-api.rule: Host(`lidarr.$DOMAINNAME`) && PathPrefix(`/api`)
       traefik.http.routers.lidarr-api.tls: "true"
       ## Middlewares
@@ -149,10 +146,8 @@ services:
       options:
         max-size: "10m"
 
-# Plex - Media Server
   plex:
     image: linuxserver/plex
-    
     hostname: plex
     restart: unless-stopped
     networks:
@@ -185,7 +180,7 @@ services:
       traefik.enable: "true"
       traefik.docker.network: media
       ## HTTP Routers
-      traefik.http.routers.plexms.entrypoints: https, https-web
+      traefik.http.routers.plexms.entrypoints: websecure, websecure-public
       traefik.http.routers.plexms.rule: Host(`plex.$DOMAINNAME`)
       traefik.http.routers.plexms.tls: "true"
       ## Middlewares
@@ -197,4 +192,3 @@ services:
       driver: "json-file"
       options:
         max-size: "10m"
-
