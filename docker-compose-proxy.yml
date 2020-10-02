@@ -7,6 +7,9 @@ networks:
       name: traefik_net
   default:
     driver: bridge
+  media:
+    external:
+      name: media
 
 services:
   # Traefik - Reverse Proxy
@@ -28,6 +31,7 @@ services:
         ipv4_address: 192.168.90.254
       docker_sock:
       public:
+      media:
     dns:
       - $DNS_SERVER
     ports:
