@@ -19,7 +19,7 @@ services:
   # chmod 600 $USERDIR/traefik/acme/acme.json
   # touch $USERDIR/traefik/traefik.log
   traefik:
-    image: traefik:v2.2.1
+    image: traefik:v2.3.1
     restart: always
     depends_on:
       - dockerproxy
@@ -58,9 +58,7 @@ services:
       - $USERDIR/traefik/log:/var/log/traefik
       - $USERDIR/shared:/shared
     environment:
-      CF_API_EMAIL: $CLOUDFLARE_EMAIL
-      CF_API_KEY: $CLOUDFLARE_API_KEY
-      TRAEFIK_CERTIFICATESRESOLVERS_CLOUDFLARE_DNS_ACME_EMAIL: $CLOUDFLARE_EMAIL
+      CLOUDFLARE_DNS_API_TOKEN: $CLOUDFLARE_API_KEY
     labels:
       traefik.enable: "true"
       # HTTP Routers
