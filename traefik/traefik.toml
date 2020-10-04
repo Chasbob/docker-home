@@ -39,7 +39,7 @@
 
   [entryPoints.websecure-public]
     address = ":44344"
-    [entryPoints.websecure.http]
+    [entryPoints.websecure-public.http]
       middlewares = ["chain-oauth@file"]
 
 # Enable ACME (Let's Encrypt): automatic SSL.
