@@ -1,0 +1,100 @@
+version: "3.8"
+
+networks:
+  ingest:
+    # ipam:
+    #   driver: bridge
+    #   config:
+    #     - subnet: 192.168.99.0/24
+    driver: bridge
+    name: 'ingest'
+
+services:
+  vpn:
+    image: bubuntux/nordvpn:3.7.4
+    networks:
+      ingest:
+    # network_mode: bridge        # Required
+    volumes:
+      - ./resolv.conf:/etc/resolv.conf
+    cap_add:
+      - NET_ADMIN               # Required
+      - SYS_MODULE              # Required for TECHNOLOGY=NordLynx
+    sysctls:
+      - net.ipv4.conf.all.rp_filter=2
+    devices:
+      - /dev/net/tun            # Required
+    environment:                # Review https://github.com/bubuntux/nordvpn#environment-variables
+      USER: $NORDVPN_USERNAME     # Required
+      PASS: $NORDVPN_PASSWORD         # Required
+      CONNECT: United_Kingdom
+      TECHNOLOGY: NordLynx
+      NETWORK: 192.168.90.0/24
+    # ports:
+    #   - 8080:8080
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: ingest
+      ## HTTP Routers
+      traefik.http.routers.torrent-rtr.entrypoints: websecure
+      traefik.http.routers.torrent-rtr.rule: Host(`qbit.$DOMAINNAME`)
+      traefik.http.routers.torrent-rtr.tls: "true"
+      ## HTTP Services
+      traefik.http.routers.torrent-rtr.service: torrent-svc
+      traefik.http.services.torrent-svc.loadbalancer.server.port: 8080
+      ## Jackett
+      traefik.http.routers.jackett-rtr.entrypoints: websecure
+      traefik.http.routers.jackett-rtr.rule: Host(`jackett.$DOMAINNAME`)
+      traefik.http.routers.jackett-rtr.tls: "true"
+      traefik.http.routers.jackett-rtr.service: jackett-svc
+      traefik.http.services.jackett-svc.loadbalancer.server.port: 9117
+    healthcheck:
+      disable: true
+
+  torrent:
+    image: linuxserver/qbittorrent
+    network_mode: service:vpn
+    volumes:
+      - $USERDIR/qbit:/config
+      - $MEDIADIR/Downloads:/downloads
+    depends_on:
+      - vpn
+    environment:
+      PUID: 1000
+      PGID: 1000
+      TZ: Europe/London
+      UMASK_SET: 022
+      WEBUI_PORT: 8080
+    restart: unless-stopped
+
+  jackett:
+    image: linuxserver/jackett
+    network_mode: service:vpn
+    depends_on:
+      - vpn
+    restart: unless-stopped
+    volumes:
+      - $USERDIR/jackett:/config
+      - $MEDIADIR/Downloads:/downloads
+    environment:
+      PUID: $PUID
+      PGID: $PGID
+      TZ: $TZ
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+
+  traefik:
+    links:
+      - vpn:torrent
+    networks:
+      ingest:
+
+  sonarr:
+    networks:
+      ingest:
+
+  radarr:
+    networks:
+      ingest:
