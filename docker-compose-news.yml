@@ -1,0 +1,47 @@
+version: '3.8'
+
+networks:
+  news:
+    name: news
+
+services:
+  freshrss:
+    image: linuxserver/freshrss
+    restart: unless-stopped
+    environment:
+      TZ: $TZ
+      PUID: $PUID
+      PGID: $PGID
+    volumes:
+      - $USERDIR/freshrss:/config
+    depends_on:
+      - freshrss-db
+    networks:
+      news:
+    labels:
+      com.centurylinklabs.watchtower.enable: "true"
+      traefik.enable: "true"
+      traefik.docker.network: news
+      ## HTTP Routers
+      traefik.http.routers.freshrss.rule: Host(`news.$DOMAINNAME`)
+      traefik.http.routers.freshrss.tls: "true"
+      ## HTTP Services
+      traefik.http.routers.freshrss.service: freshrss-svc
+      traefik.http.services.freshrss-svc.loadbalancer.server.port: 80
+
+  freshrss-db:
+    image: mariadb
+    restart: unless-stopped
+    networks:
+      news:
+    environment:
+      MYSQL_RANDOM_ROOT_PASSWORD: enable
+      MYSQL_USER: ${FRESHRSS_DB_USER}
+      MYSQL_PASSWORD: ${FRESHRSS_DB_PASSWORD}
+      MYSQL_DATABASE: ${FRESHRSS_DB_DATABASE}
+    volumes:
+      - $USERDIR/freshrss-db:/var/lib/mysql
+  
+  traefik:
+    networks:
+      news:
