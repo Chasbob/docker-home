@@ -112,8 +112,7 @@ services:
         max-size: "10m"
 
   plex:
-    image: linuxserver/plex
-    hostname: plex
+    image: plexinc/pms-docker
     restart: unless-stopped
     networks:
       - media
@@ -133,6 +132,7 @@ services:
       - $MEDIADIR/Downloads:/Downloads
       - $MEDIADIR/TV:/tv
       - $MEDIADIR/Movies:/movies
+      - $MEDIADIR/General:/general
       - $MEDIADIR/Music/processed:/Music
       - /dev/shm:/transcode # Offload transcoding to RAM if you have enough RAM
     environment:
@@ -148,8 +148,6 @@ services:
       traefik.http.routers.plexms.entrypoints: websecure, websecure-public
       traefik.http.routers.plexms.rule: Host(`plex.$DOMAINNAME`)
       traefik.http.routers.plexms.tls: "true"
-      ## Middlewares
-      traefik.http.routers.plexms.middlewares: chain-no-auth@file
       ## HTTP Services
       traefik.http.routers.plexms.service: plexms-svc
       traefik.http.services.plexms-svc.loadbalancer.server.port: 32400

@@ -1,3 +1,6 @@
+[pilot]
+    token = "{{ env PILOT_TOKEN }}"
+
 ################################################################
 # Global configuration
 ################################################################
@@ -34,8 +37,8 @@
 #######
   [entryPoints.websecure]
     address = ":443"
-    [entryPoints.websecure.http]
-      middlewares = ["chain-oauth@file"]
+    # [entryPoints.websecure.http]
+    #   middlewares = ["chain-oauth@file"]
 
   [entryPoints.websecure-public]
     address = ":44344"
@@ -59,7 +62,7 @@
   [providers.docker]
     watch = true
     endpoint = "tcp://dockerproxy:2375"
-    defaultRule = "Host(`{{ index .Labels \"com.docker.compose.service\" }}.$DOMAINNAME`)"
+    defaultRule = "Host(`{{ index .Labels \"com.docker.compose.service\" }}.{{ env \"DOMAINNAME\" }}`)"
     exposedByDefault = false
     swarmMode = false
     network = "traefik_net"
