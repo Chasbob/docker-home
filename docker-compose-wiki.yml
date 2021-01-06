@@ -1,0 +1,47 @@
+version: '3.8'
+
+networks:
+  wiki:
+    name: wiki
+
+services:
+  wiki:
+    image: requarks/wiki:2
+    restart: unless-stopped
+    networks:
+      wiki:
+    depends_on:
+      - wiki-db
+    environment:
+      DB_TYPE: postgres
+      DB_HOST: wiki-db
+      DB_PORT: 5432
+      DB_USER: $WIKIJS_DB_USER
+      DB_PASS: $WIKIJS_DB_PASSWORD
+      DB_NAME: $WIKIJS_DB_DATABASE
+    labels:
+      com.centurylinklabs.watchtower.enable: "true"
+      traefik.enable: "true"
+      traefik.docker.network: wiki
+      ## HTTP Routers
+      traefik.http.routers.wiki.rule: Host(`wiki.$DOMAINNAME`)
+      traefik.http.routers.wiki.tls: "true"
+      ## HTTP Services
+      traefik.http.routers.wiki.service: wiki-svc
+      traefik.http.services.wiki-svc.loadbalancer.server.port: 3000
+
+  wiki-db:
+    image: postgres:11-alpine
+    networks:
+      wiki:
+    environment:
+      POSTGRES_USER: $WIKIJS_DB_USER
+      POSTGRES_PASSWORD: $WIKIJS_DB_PASSWORD
+      POSTGRES_DB: $WIKIJS_DB_DATABASE
+    restart: unless-stopped
+    volumes:
+      - $USERDIR/wiki-db:/var/lib/postgresql/data
+
+  traefik:
+    networks:
+      wiki:
